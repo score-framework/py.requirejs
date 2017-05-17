@@ -8,8 +8,8 @@ libraries for the development of large scale web projects. Powered by strg.at_.
 score.projects
 ==============
 
-This module will help you manage your javascript libraries in your next web
-project.
+This module will provide an easy integration of a require.js base workflow in
+your next web project.
 
 This module is a work in progress, thus currently poorly documented :-/
 
