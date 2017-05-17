@@ -24,7 +24,7 @@
 # the discretion of STRG.AT GmbH also the competent court, in whose district the
 # Licensee has his registered seat, an establishment or assets.
 
-from score.init import ConfiguredModule, ConfigurationError
+from score.init import ConfiguredModule, ConfigurationError, parse_list
 import json
 import os
 import tempfile
@@ -33,11 +33,13 @@ from score.tpl import TemplateNotFound
 from score.tpl.loader import Loader
 from score.webassets import WebassetsProxy
 import hashlib
+import re
 
 
 defaults = {
     'cachedir': None,
     'config_file': None,
+    'passthrough_extensions': [],
 }
 
 
@@ -58,17 +60,19 @@ def init(confdict, tpl, webassets):
     else:
         cachedir = os.path.join(tempfile.gettempdir(), 'score', 'jslib')
         os.makedirs(cachedir, exist_ok=True)
-    return ConfiguredRequirejsModule(tpl, webassets, conf['config_file'])
+    return ConfiguredRequirejsModule(tpl, webassets, conf['config_file'],
+                                     parse_list(conf['passthrough_extensions']))
 
 
 class ConfiguredRequirejsModule(ConfiguredModule):
 
-    def __init__(self, tpl, webassets, config_file):
+    def __init__(self, tpl, webassets, config_file, passthrough_extensions):
         import score.requirejs
         super().__init__(score.requirejs)
         self.tpl = tpl
         self.webassets = webassets
         self.config_file = config_file
+        self.passthrough_extensions = passthrough_extensions
         self.loader = RequireJsLoader(self)
         self.tpl.loaders['js'].append(self.loader)
 
@@ -133,19 +137,21 @@ class ConfiguredRequirejsModule(ConfiguredModule):
 
     def _iter_paths(self):
         yield from self.tpl.iter_paths('application/javascript')
-        # TODO: make the semantics of the next line configurable
-        yield from (path for path in self.tpl.iter_paths()
-                    if path.endswith('.mustache'))
+        if self.passthrough_extensions:
+            extensions_regex = re.compile(
+                r'\.(%s)$' %
+                '|'.join(map(re.escape, self.passthrough_extensions)))
+            yield from (path for path in self.tpl.iter_paths()
+                        if extensions_regex.search(path))
 
     def _copy_files(self, folder, paths=None):
         if not paths:
-            paths = sorted(self._iter_paths())
+            paths = self._iter_paths()
         include_paths = list()
         for path in paths:
             if path == '!require.js':
                 continue
             header = ''
-            content = self.tpl.render(path)
             file = os.path.join(folder, path)
             if self.tpl.mimetype(path) == 'application/javascript':
                 header = \
@@ -153,9 +159,16 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                     '//  {path}  //\n' \
                     '//--{sep}--//\n' \
                     .format(path=path, sep=('-' * len(path)))
+                content = self.tpl.render(path)
                 base, ext = os.path.splitext(path)
                 include_paths.append(base)
                 file = os.path.join(folder, base + '.js')
+            else:
+                is_file, result = self.tpl.load(path)
+                if is_file:
+                    content = open(result).read()
+                else:
+                    content = result
             os.makedirs(os.path.dirname(file), exist_ok=True)
             open(file, 'w').write(header + content + '\n\n\n')
         return include_paths
@@ -201,7 +214,12 @@ class RequirejsAssets(WebassetsProxy):
 
     def render(self, path):
         try:
-            return self.conf.tpl.render(path)
+            if self.conf.tpl.mimetype(path) == 'application/javascript':
+                return self.conf.tpl.render(path)
+            is_file, result = self.conf.tpl.load(path)
+            if is_file:
+                result = open(result).read()
+            return result
         except TemplateNotFound:
             from score.webassets import AssetNotFound
             raise AssetNotFound('requirejs', path)
