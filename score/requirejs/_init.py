@@ -132,8 +132,12 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                     process.returncode, 'node.js', output=stderr)
             if stderr:
                 self.log.info("node.js output:\n" + stderr)
-        return (rendered_requirejs + stdout +
-                self.tpl.render('!require-config.js'))
+        javascript = (rendered_requirejs + stdout +
+                      self.tpl.render('!require-config.js'))
+        filetype = self.tpl.filetypes['application/javascript']
+        for postprocessor in filetype.postprocessors:
+            javascript = postprocessor(javascript)
+        return javascript
 
     def _iter_paths(self):
         yield from self.tpl.iter_paths('application/javascript')
