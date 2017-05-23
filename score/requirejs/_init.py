@@ -163,7 +163,7 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                     '//  {path}  //\n' \
                     '//--{sep}--//\n' \
                     .format(path=path, sep=('-' * len(path)))
-                content = self.tpl.render(path)
+                content = self.tpl.render(path, apply_postprocessors=False)
                 base, ext = os.path.splitext(path)
                 include_paths.append(base)
                 file = os.path.join(folder, base + '.js')
