@@ -33,7 +33,7 @@ with open(os.path.join(here, 'README.rst')) as f:
 
 setup(
     name='score.requirejs',
-    version='0.0.1',
+    version='0.0.2',
     long_description=README,
     author='strg.at',
     author_email='score@strg.at',
