@@ -40,6 +40,7 @@ defaults = {
     'cachedir': None,
     'config_file': None,
     'passthrough_extensions': [],
+    'path.nodejs': 'nodejs',
 }
 
 
@@ -60,18 +61,21 @@ def init(confdict, tpl, webassets):
     else:
         cachedir = os.path.join(tempfile.gettempdir(), 'score', 'jslib')
         os.makedirs(cachedir, exist_ok=True)
-    return ConfiguredRequirejsModule(tpl, webassets, conf['config_file'],
-                                     parse_list(conf['passthrough_extensions']))
+    return ConfiguredRequirejsModule(
+        tpl, webassets, conf['config_file'], conf['path.nodejs'],
+        parse_list(conf['passthrough_extensions']))
 
 
 class ConfiguredRequirejsModule(ConfiguredModule):
 
-    def __init__(self, tpl, webassets, config_file, passthrough_extensions):
+    def __init__(self, tpl, webassets, config_file, nodejs_path,
+                 passthrough_extensions):
         import score.requirejs
         super().__init__(score.requirejs)
         self.tpl = tpl
         self.webassets = webassets
         self.config_file = config_file
+        self.nodejs_path = nodejs_path
         self.passthrough_extensions = passthrough_extensions
         self.loader = RequireJsLoader(self)
         self.tpl.loaders['js'].append(self.loader)
@@ -109,7 +113,7 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                 "baseUrl": srcdir,
                 "optimize": "none",
             }))
-            process = subprocess.Popen(['nodejs'],
+            process = subprocess.Popen([self.nodejs_path],
                                        stdin=subprocess.PIPE,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
@@ -119,15 +123,15 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                 self.log.error(stderr)
                 try:
                     raise subprocess.CalledProcessError(
-                        process.returncode, 'node',
+                        process.returncode, 'node.js',
                         output=stdout, stderr=stderr)
                 except TypeError:
                     # the stderr kwarg is only available in python 3.5
                     pass
                 raise subprocess.CalledProcessError(
-                    process.returncode, 'node', output=stderr)
+                    process.returncode, 'node.js', output=stderr)
             if stderr:
-                self.log.info("node output:\n" + stderr)
+                self.log.info("node.js output:\n" + stderr)
         return (rendered_requirejs + stdout +
                 self.tpl.render('!require-config.js'))
 
