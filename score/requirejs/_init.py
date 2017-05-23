@@ -80,10 +80,6 @@ class ConfiguredRequirejsModule(ConfiguredModule):
         return RequirejsAssets(self)
 
     def create_bundle(self, paths=None):
-        if '!require.js' in paths:
-            paths.remove('!require.js')
-        if '!require-config.js' in paths:
-            paths.remove('!require-config.js')
         rendered_requirejs = self.tpl.render('!require.js')
         with tempfile.TemporaryDirectory() as tmpdir:
             srcdir = os.path.join(tmpdir, 'src')
@@ -123,15 +119,15 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                 self.log.error(stderr)
                 try:
                     raise subprocess.CalledProcessError(
-                        process.returncode, 'r.js',
+                        process.returncode, 'node',
                         output=stdout, stderr=stderr)
                 except TypeError:
                     # the stderr kwarg is only available in python 3.5
                     pass
                 raise subprocess.CalledProcessError(
-                    process.returncode, 'r.js', output=stderr)
+                    process.returncode, 'node', output=stderr)
             if stderr:
-                self.log.info("r.js output:\n" + stderr)
+                self.log.info("node output:\n" + stderr)
         return (rendered_requirejs + stdout +
                 self.tpl.render('!require-config.js'))
 
@@ -146,10 +142,10 @@ class ConfiguredRequirejsModule(ConfiguredModule):
 
     def _copy_files(self, folder, paths=None):
         if not paths:
-            paths = self._iter_paths()
+            paths = list(self._iter_paths())
         include_paths = list()
         for path in paths:
-            if path == '!require.js':
+            if path in ('!require.js', '!require-config.js'):
                 continue
             header = ''
             file = os.path.join(folder, path)
