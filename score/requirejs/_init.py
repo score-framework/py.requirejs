@@ -32,7 +32,6 @@ import subprocess
 from score.tpl import TemplateNotFound
 from score.tpl.loader import Loader
 from score.webassets import WebassetsProxy
-import hashlib
 import re
 
 
@@ -236,12 +235,6 @@ class RequirejsAssets(WebassetsProxy):
 
     def create_bundle(self, paths):
         return self.conf.create_bundle(paths)
-
-    def bundle_hash(self, paths):
-        hashes = []
-        for path in sorted(paths):
-            hashes.append(self.conf.tpl.hash(path))
-        return hashlib.sha256('\0'.join(hashes).encode('UTF-8')).hexdigest()
 
     def bundle_mimetype(self, paths):
         return 'application/javascript'
