@@ -24,7 +24,7 @@
 # the discretion of STRG.AT GmbH also the competent court, in whose district the
 # Licensee has his registered seat, an establishment or assets.
 
-from score.init import ConfiguredModule, ConfigurationError, parse_list
+from score.init import ConfiguredModule, parse_list
 import json
 import os
 import tempfile
@@ -36,7 +36,6 @@ import re
 
 
 defaults = {
-    'cachedir': None,
     'config_file': None,
     'passthrough_extensions': [],
     'path.nodejs': 'nodejs',
@@ -47,25 +46,60 @@ def init(confdict, tpl, webassets):
     """
     Initializes this module acoording to the :ref:`SCORE module initialization
     guidelines <module_initialization>` with the following configuration keys:
+
+    :confkey:`config_file` :confdefault:`None`
+        An optional javascript file containing the `requirejs configuration`_.
+        This file should only contain the configuration object itself, but the
+        object does not have to adhere to a strict JSON syntax and may contain
+        javascript functions. The following is a perfectly valid example for the
+        referenced file's content:
+
+        .. code-block:: javascript
+
+            {
+                map: {
+                    'some/newmodule': {
+                        'foo': 'foo1.2'
+                    },
+                },
+                shim: {
+                    'foo': {
+                        deps: ['bar'],
+                        exports: 'Foo',
+                        init: function (bar) {
+                            return this.Foo.noConflict();
+                        }
+                    }
+                }
+            }
+
+        .. _requirejs configuration: http://requirejs.org/docs/api.html#config
+
+    :confkey:`passthrough_extensions` :confdefault:`[]`
+        A list of additional file extensions that this module is allowed to pass
+        to browsers. If you want to pass mustache_ templates to the browser, for
+        example, you must provide the ``mustache`` extension in this list.
+
+        .. _mustache: http://mustache.github.io/
+
+    :confkey:`path.nodejs` :confdefault:`nodejs`
+        The path to the nodejs_ executable. This value is only relevant if
+        :term:`asset bundling <asset bundle>` is enabled in
+        :mod:`score.webassets`.
+
+        .. _nodejs: https://nodejs.org/en/
     """
     conf = defaults.copy()
     conf.update(confdict)
-    if conf['cachedir']:
-        cachedir = conf['cachedir']
-        if not os.path.isdir(cachedir):
-            import score.requirejs
-            raise ConfigurationError(
-                score.requirejs,
-                'Configured `cachedir` does not exist')
-    else:
-        cachedir = os.path.join(tempfile.gettempdir(), 'score', 'jslib')
-        os.makedirs(cachedir, exist_ok=True)
     return ConfiguredRequirejsModule(
         tpl, webassets, conf['config_file'], conf['path.nodejs'],
         parse_list(conf['passthrough_extensions']))
 
 
 class ConfiguredRequirejsModule(ConfiguredModule):
+    """
+    This module's :class:`configuration class <score.init.ConfiguredModule>`.
+    """
 
     def __init__(self, tpl, webassets, config_file, nodejs_path,
                  passthrough_extensions):
@@ -80,6 +114,9 @@ class ConfiguredRequirejsModule(ConfiguredModule):
         self.tpl.loaders['js'].append(self.loader)
 
     def score_webassets_proxy(self):
+        """
+        Provides the :ref:`webassets proxy <webassets_proxy>`.
+        """
         return RequirejsAssets(self)
 
     def create_bundle(self, paths=None):
