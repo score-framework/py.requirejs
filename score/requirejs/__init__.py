@@ -1,4 +1,4 @@
-# Copyright © 2017 STRG.AT GmbH, Vienna, Austria
+# Copyright © 2017,2018 STRG.AT GmbH, Vienna, Austria
 #
 # This file is part of the The SCORE Framework.
 #
@@ -26,6 +26,6 @@
 
 from ._init import init, ConfiguredRequirejsModule
 
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 __all__ = ('init', 'ConfiguredRequirejsModule')

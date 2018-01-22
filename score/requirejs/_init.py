@@ -1,4 +1,4 @@
-# Copyright © 2017 STRG.AT GmbH, Vienna, Austria
+# Copyright © 2017,2018 STRG.AT GmbH, Vienna, Austria
 #
 # This file is part of the The SCORE Framework.
 #
