@@ -64,5 +64,6 @@ setup(
     install_requires=[
         'score.init',
         'score.tpl',
+        'score.webassets>=0.3.10',
     ],
 )

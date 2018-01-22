@@ -175,7 +175,7 @@ class ConfiguredRequirejsModule(ConfiguredModule):
             javascript = postprocessor(javascript)
         return javascript
 
-    def _iter_paths(self):
+    def _iter_all_paths(self):
         yield from self.tpl.iter_paths('application/javascript')
         if self.passthrough_extensions:
             extensions_regex = re.compile(
@@ -186,13 +186,12 @@ class ConfiguredRequirejsModule(ConfiguredModule):
 
     def _copy_files(self, folder, paths=None):
         if not paths:
-            paths = list(self._iter_paths())
+            paths = list(self._iter_all_paths())
         include_paths = list()
         for path in paths:
             if path in ('!require.js', '!require-config.js'):
                 continue
             header = ''
-            file = os.path.join(folder, path)
             if self.tpl.mimetype(path) == 'application/javascript':
                 header = \
                     '//--{sep}--//\n' \
@@ -209,6 +208,7 @@ class ConfiguredRequirejsModule(ConfiguredModule):
                     content = open(result).read()
                 else:
                     content = result
+                file = os.path.join(folder, path)
             os.makedirs(os.path.dirname(file), exist_ok=True)
             open(file, 'w').write(header + content + '\n\n\n')
         return include_paths
@@ -242,12 +242,14 @@ class RequirejsAssets(WebassetsProxy):
 
     def iter_default_paths(self):
         yield from ['!require.js', '!require-config.js']
-        if self.conf.webassets.tpl_autobundle:
-            yield from self.conf._iter_paths()
+
+    def iter_default_bundle_paths(self):
+        yield from ['!require.js', '!require-config.js']
+        yield from self.conf._iter_all_paths()
 
     def validate_path(self, path):
         return path in ['!require.js', '!require-config.js'] or \
-            path in self.conf._iter_paths()
+            path in self.conf._iter_all_paths()
 
     def hash(self, path):
         return None
@@ -270,7 +272,7 @@ class RequirejsAssets(WebassetsProxy):
     def render_url(self, url):
         return '<script src="%s"></script>' % (url,)
 
-    def create_bundle(self, paths):
+    def create_bundle(self, paths=None):
         return self.conf.create_bundle(paths)
 
     def bundle_mimetype(self, paths):
