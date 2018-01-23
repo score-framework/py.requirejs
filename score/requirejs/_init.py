@@ -31,7 +31,7 @@ import tempfile
 import subprocess
 from score.tpl import TemplateNotFound
 from score.tpl.loader import Loader
-from score.webassets import WebassetsProxy
+from score.webassets import TemplateWebassetsProxy
 import re
 
 
@@ -120,7 +120,8 @@ class ConfiguredRequirejsModule(ConfiguredModule):
         return RequirejsAssets(self)
 
     def create_bundle(self, paths=None):
-        rendered_requirejs = self.tpl.render('!require.js')
+        rendered_requirejs = self.tpl.render('!require.js',
+                                             apply_postprocessors=False)
         with tempfile.TemporaryDirectory() as tmpdir:
             srcdir = os.path.join(tmpdir, 'src')
             os.makedirs(srcdir)
@@ -169,7 +170,8 @@ class ConfiguredRequirejsModule(ConfiguredModule):
             if stderr:
                 self.log.info("node.js output:\n" + stderr)
         javascript = (rendered_requirejs + stdout +
-                      self.tpl.render('!require-config.js'))
+                      self.tpl.render('!require-config.js',
+                                      apply_postprocessors=False))
         filetype = self.tpl.filetypes['application/javascript']
         for postprocessor in filetype.postprocessors:
             javascript = postprocessor(javascript)
@@ -235,10 +237,11 @@ class RequireJsLoader(Loader):
         return path in self.iter_paths()
 
 
-class RequirejsAssets(WebassetsProxy):
+class RequirejsAssets(TemplateWebassetsProxy):
 
     def __init__(self, conf):
         self.conf = conf
+        super().__init__(conf.tpl, 'application/javascript')
 
     def iter_default_paths(self):
         yield from ['!require.js', '!require-config.js']
@@ -252,12 +255,14 @@ class RequirejsAssets(WebassetsProxy):
             path in self.conf._iter_all_paths()
 
     def hash(self, path):
-        return None
+        if path in ['!require.js', '!require-config.js']:
+            return None
+        return super().hash(path)
 
     def render(self, path):
         try:
             if self.conf.tpl.mimetype(path) == 'application/javascript':
-                return self.conf.tpl.render(path)
+                return super().render(path)
             is_file, result = self.conf.tpl.load(path)
             if is_file:
                 result = open(result).read()
@@ -266,14 +271,8 @@ class RequirejsAssets(WebassetsProxy):
             from score.webassets import AssetNotFound
             raise AssetNotFound('requirejs', path)
 
-    def mimetype(self, path):
-        return self.conf.tpl.mimetype(path)
-
     def render_url(self, url):
         return '<script src="%s"></script>' % (url,)
 
     def create_bundle(self, paths=None):
         return self.conf.create_bundle(paths)
-
-    def bundle_mimetype(self, paths):
-        return 'application/javascript'
